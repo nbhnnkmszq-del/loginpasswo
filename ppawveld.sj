@@ -5,10 +5,8 @@ const crypto = require('crypto');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// 🔐 المفتاح السري (غيّره لأي شي 16 حرف)
 const SECRET_KEY = 'SnapSecret2026!';
 
-// دالة التشفير
 function encrypt(text) {
     const cipher = crypto.createCipher('aes-256-cbc', SECRET_KEY);
     let encrypted = cipher.update(text, 'utf8', 'hex');
@@ -16,23 +14,21 @@ function encrypt(text) {
     return encrypted;
 }
 
-// 📡 رابط Firebase (موجود هنا فقط)
 const FIREBASE_URL = 'https://substrate-i-default-rtdb.firebaseio.com/S006PRO.json';
+
+// 🌐 الصفحة الرئيسية (جديد)
+app.get('/', (req, res) => {
+    res.send('🚀 السيرفر شغال!');
+});
 
 // 🌐 نقطة النهاية اللي يتصل فيها التطبيق
 app.get('/getConfig', async (req, res) => {
     try {
-        // 1. جلب البيانات من Firebase
         const response = await axios.get(FIREBASE_URL);
         const data = response.data;
-        
-        // 2. تحويل البيانات لنص JSON
         const jsonString = JSON.stringify(data);
-        
-        // 3. تشفير النص
         const encrypted = encrypt(jsonString);
         
-        // 4. إرسال البيانات المشفرة للتطبيق
         res.json({
             status: 'success',
             data: encrypted
@@ -46,7 +42,6 @@ app.get('/getConfig', async (req, res) => {
     }
 });
 
-// تشغيل السيرفر
 app.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
 });
