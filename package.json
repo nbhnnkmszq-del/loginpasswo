@@ -1,7 +1,7 @@
 {
   "name": "snap-login-server",
   "version": "1.0.0",
-  "main": "server.js",
+  "main": "ppawveld.sj",
   "scripts": {
     "start": "node server.js"
   },
