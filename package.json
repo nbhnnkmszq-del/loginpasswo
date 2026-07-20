@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "ppawveld.sj",
   "scripts": {
-    "start": "node server.js"
+    "start": "node ppawveld.sj"
   },
   "dependencies": {
     "express": "^4.19.2"
