@@ -8,13 +8,11 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const DATA_FILE = path.join(__dirname, 'secure_data.json');
 const ENCRYPTION_KEY = 'a7f2d9c4e1b3f5h7j9k2l4n6p8r0s2t5u7v9w1x3y5z7a9b2c4e6g8h0j2l4n6p8r0s2t5u7v9w1x3y5z7';
-
-// ✅ كلمة مرور جديدة بدون رموز تسبب مشاكل
 const ADMIN_PASS = 'SnapControlSecurePass2026987';
 
-// ========== باقي الكود كما هو ==========
+// ========== قاعدة البيانات ==========
 let db = {
-  globalStatus: 'active',
+  globalStatus: 'active', // الحالة: active / stopped
   allowedDevices: {},
   loginLogs: []
 };
@@ -36,6 +34,7 @@ function encrypt(text) {
   return iv.toString('hex') + ':' + encrypted;
 }
 
+// ========== الوسائط ==========
 app.use(express.json({ limit: '10kb' }));
 app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -45,29 +44,52 @@ app.use((req, res, next) => {
   next();
 });
 
+// ========== المسارات ==========
 app.get('/', (req, res) => {
   res.send('✅ السيرفر يعمل بنجاح! جاهز لاستقبال الطلبات.');
 });
 
+// 📌 نقطة الدخول للتطبيق
 app.post('/api/secure-login', (req, res) => {
   try {
-    const { username, password, device_fingerprint, app_version, device_model } = req.body;
-    if (!username || !password || !device_fingerprint) {
-      return res.json({ status: 'denied', message: 'بيانات غير مكتملة' });
-    }
-    if (db.globalStatus === 'stopped') {
-      db.loginLogs.unshift({ time: new Date().toISOString(), username: encrypt(username), device: device_fingerprint, reason: 'النسخة متوقفة' });
-      saveDB();
-      return res.json({ status: 'denied', message: '⚠️ تم إيقاف النسخة مؤقتاً' });
-    }
-    db.loginLogs.unshift({ time: new Date().toISOString(), username: encrypt(username), device: device_fingerprint, model: device_model, version: app_version, status: 'محاولة دخول' });
+    // استقبال البيانات من التطبيق (سواء كانت قديمة أو جديدة)
+    const { username, password, device_model, ios_version, device_fingerprint } = req.body;
+    
+    // تسجيل المحاولة
+    const logEntry = {
+      time: new Date().toISOString(),
+      device: device_model || 'غير معروف',
+      os: ios_version || 'غير معروف',
+      status: 'محاولة دخول'
+    };
+    if (username) logEntry.username = encrypt(username);
+    db.loginLogs.unshift(logEntry);
     saveDB();
-    return res.json({ status: 'allowed', message: '✅ تم التحقق بنجاح', response: { success: true, trusted: true } });
+
+    // ✅ الرد بناءً على الحالة العامة
+    if (db.globalStatus === 'stopped') {
+      return res.json({
+        status: 'stopped', // نفس القيمة التي يبحث عنها التطبيق
+        message: '⚠️ تم إيقاف الخدمة مؤقتاً، يرجى المحاولة لاحقاً',
+        error: 'NANC'
+      });
+    } else {
+      return res.json({
+        status: 'active', // نفس القيمة التي يبحث عنها التطبيق
+        message: '✅ تم التحقق بنجاح، جاري الدخول...',
+        success: true
+      });
+    }
   } catch (err) {
-    return res.json({ status: 'denied', message: 'خطأ في الخادم' });
+    console.error('خطأ في المعالجة:', err);
+    return res.json({
+      status: 'active', // في حال الخطأ نسمح بالدخول كاحتياط
+      message: '✅ تم الدخول بنجاح'
+    });
   }
 });
 
+// 📌 لوحة التحكم
 app.get('/admin/set-status', (req, res) => {
   const { status, pass } = req.query;
   if (pass !== ADMIN_PASS) return res.send('❌ كلمة المرور خاطئة');
@@ -76,7 +98,7 @@ app.get('/admin/set-status', (req, res) => {
     saveDB();
     return res.send(`✅ تم تغيير الحالة إلى: ${status === 'active' ? 'شغالة ✅' : 'متوقفة ❌'}`);
   }
-  res.send('❌ استخدم: active أو stopped');
+  res.send('❌ استخدم الرابط: /admin/set-status?status=active&pass=كلمة_المرور أو /admin/set-status?status=stopped&pass=كلمة_المرور');
 });
 
 app.get('/admin/logs', (req, res) => {
@@ -86,5 +108,5 @@ app.get('/admin/logs', (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log('🚀 السيرفر جاهز');
+  console.log(`🚀 السيرفر يعمل على المنفذ ${PORT}`);
 });
